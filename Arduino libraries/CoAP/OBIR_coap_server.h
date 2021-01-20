@@ -178,6 +178,8 @@ public:
 	ObirIPAddress observer_clientip;
 	int observer_clientport;
 	String observer_url;
+	int observer_maxAge;
+	unsigned long observer_prevMillis;
 };
 
 //coap class
@@ -196,11 +198,10 @@ public:
 	uint16_t sendPacket(coapPacket *packet, ObirIPAddress ip, int port);
 	void resourceDiscovery(coapPacket *packet, ObirIPAddress ip, int port, resource_dis resource[]);
 
-	void sendResponse(ObirIPAddress ip, int port, char *payload);
-	void sendResponse(ObirIPAddress ip, int port, COAP_CONTENT_TYPE contentType, char *payload);
+	void sendResponse(ObirIPAddress ip, int port, char *payload,uint8_t payloadLen);
+	void sendResponse(ObirIPAddress ip, int port, COAP_CONTENT_TYPE contentType, char *payload, uint8_t payloadLen);
 	void addObserver(String url, coapPacket *request, ObirIPAddress ip, int port);
-	void sendResponse(char *payload);
-	//void notification(char *payload);
+	void notification(char *payload, String url);
 	long getPreviousMillis();
 	void notFound(coapPacket *packet, ObirEthernetUDP Udp);
 };
