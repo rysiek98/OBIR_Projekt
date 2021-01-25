@@ -21,7 +21,6 @@ char edges[40] = {0};                                        //tablica krawedzi
 char centVert[10] = {0};                                     //tablica wierz. cent.
 int path[10];
 //int INT_MAX = 100;
-unsigned int sendPackets = 0;
 unsigned int putNum = 0;
 unsigned int prevPutNum = 0;
 unsigned int getNum = 0;
@@ -267,33 +266,34 @@ int parsePacket(uint8_t *payload, int payloadLen)
         return 2;
 }
 
-
 void callback_center(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
 {
-    Serial.println("Central Vertices");
+    //Serial.println("Central Vertices");
     if (packet->code == COAP_GET && count == 0)
     {
         getNum++;
-        sendPackets++;
         coap.sendResponse(ip, port, 132, COAP_TEXT_PLAIN, "", (uint8_t)0);
     }
     else if (packet->code == COAP_GET && count != 0)
     {
         getNum++;
         centralVert();
-        sendPackets++;
-        if(accept == 97 || accept == 100){
-            coap.sendResponse(ip, port,  COAP_TEXT_PLAIN, centVert, (uint8_t)strlen(centVert));
-        }else if (accept == 40){
-            int len = ((int)strlen(centVert))+4;
-            char payload[len]={0};
+        if (accept == 97 || accept == 100)
+        {
+            coap.sendResponse(ip, port, COAP_TEXT_PLAIN, centVert, (uint8_t)strlen(centVert));
+        }
+        else if (accept == 40)
+        {
+            int len = ((int)strlen(centVert)) + 4;
+            char payload[len] = {0};
             payload[0] = '<';
             payload[1] = '/';
-            for(int i=0; i < strlen(centVert); i++){
-                payload[i+2] = centVert[i];
+            for (int i = 0; i < strlen(centVert); i++)
+            {
+                payload[i + 2] = centVert[i];
             }
-            payload[len-2] = '>';
-            payload[len-1] = ';';
+            payload[len - 2] = '>';
+            payload[len - 1] = ';';
             coap.sendResponse(ip, port, COAP_APPLICATION_LINK_FORMAT, payload, (uint8_t)len);
         }
     }
@@ -301,29 +301,24 @@ void callback_center(coapPacket *packet, ObirIPAddress ip, int port, int obs, ui
 //CoAP server Edges endpoint
 void callback_edges(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
 {
-    Serial.println("Edges");
+    //Serial.println("Edges");
 
     if (packet->code == COAP_PUT)
     {
         putNum++;
         if (parsePacket(packet->payload, packet->payloadlen) == 0)
         {
-            sendPackets++;
             coap.sendResponse(ip, port, 65, COAP_TEXT_PLAIN, "", (uint8_t)0);
         }
         else if (parsePacket(packet->payload, packet->payloadlen) == 1)
         {
-            sendPackets++;
             coap.sendResponse(ip, port, 160, COAP_TEXT_PLAIN, "", (uint8_t)0);
         }
         else if (parsePacket(packet->payload, packet->payloadlen) == 2)
 
         {
             //ewntualnie wporwadzic kod bledu
-            sendPackets++;
             coap.sendResponse(ip, port, 133, COAP_TEXT_PLAIN, "", (uint8_t)0);
-
-            //coap.sendResponse()
         }
     }
     else if (packet->code == COAP_GET)
@@ -331,7 +326,6 @@ void callback_edges(coapPacket *packet, ObirIPAddress ip, int port, int obs, uin
         getNum++;
         if (count != 0)
         {
-            sendPackets++;
             if (accept == 50)
             {
                 int len = ((int)strlen(edges)) + 12;
@@ -358,7 +352,6 @@ void callback_edges(coapPacket *packet, ObirIPAddress ip, int port, int obs, uin
 
         else
         {
-            sendPackets++;
             coap.sendResponse(ip, port, 132, COAP_TEXT_PLAIN, "", (uint8_t)0);
         }
     }
@@ -369,12 +362,11 @@ void callback_sendPackets(coapPacket *packet, ObirIPAddress ip, int port, int ob
 {
     if (packet->code == COAP_GET)
     {
-        Serial.println("Sendpackets endpoint");
-        sendPackets++;
+        //Serial.println("Sendpackets endpoint");
         getNum++;
-        uint8_t len = arrayLen(sendPackets);
+        uint8_t len = arrayLen(getNum + putNum);
         char payload[len];
-        makePayload(payload, sendPackets, len);
+        makePayload(payload, (getNum + putNum), len);
         coap.sendResponse(ip, port, COAP_TEXT_PLAIN, payload, (uint8_t)len);
     }
 }
@@ -384,11 +376,10 @@ void callback_PutNumber(coapPacket *packet, ObirIPAddress ip, int port, int obs,
     if (packet->code == COAP_GET)
     {
         getNum++;
-        Serial.println("PutNumber");
+        //Serial.println("PutNumber");
         uint8_t len = arrayLen(putNum);
         char payload[len];
         makePayload(payload, putNum, len);
-        sendPackets++;
         coap.sendResponse(ip, port, COAP_TEXT_PLAIN, payload, len);
     }
 }
@@ -397,11 +388,10 @@ void callback_GetNumber(coapPacket *packet, ObirIPAddress ip, int port, int obs,
     if (packet->code == COAP_GET)
     {
         getNum++;
-        Serial.println("GetNumber");
+        //Serial.println("GetNumber");
         uint8_t len = arrayLen(getNum);
         char payload[len];
         makePayload(payload, getNum, len);
-        sendPackets++;
         coap.sendResponse(ip, port, COAP_TEXT_PLAIN, payload, (uint8_t)len);
     }
 }
@@ -427,8 +417,7 @@ void loop()
     if (prevPutNum != putNum)
     {
         uint8_t len = arrayLen(putNum);
-        char payload[len + 1];
-        payload[len] = '\0';
+        char payload[len];
         makePayload(payload, putNum, len);
         coap.notification(payload, "PutNumber");
         prevPutNum = putNum;
