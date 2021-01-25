@@ -4,27 +4,25 @@
 #include <OBIR_coap_server.h>
 #include <SPI.h>
 
-#define INT_MAX 100
-#define VERT_MAX 10
-#define EDGE_MAX 10
+#define INT_MAX 100 //nieskonczonosc dla fukcji liczacej najkrotsze sciezki
+#define VERT_MAX 10 //maksymalna liczba wierzcholkow
+#define EDGE_MAX 10 //maksymalna liczba krawedzi
 
 byte MAC[] = {0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x02};
 coapServer coap;
-//int VERT_MAX = 10;
-//int EDGE_MAX = 10;
-int adj_matrix[10][10]; //macierz sasiedztwa
-int count = 0;          //licznik wierzcholkow
-int edgesNum = 0;
-int tmp = 0;
-int vertices[10] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1}; //tablica wierzcholkow
-char edges[40] = {0};                                        //tablica krawedzi
-char centVert[10] = {0};                                     //tablica wierz. cent.
-int path[10];
-//int INT_MAX = 100;
-unsigned int putNum = 0;
-unsigned int prevPutNum = 0;
-unsigned int getNum = 0;
+int adj_matrix[VERT_MAX][VERT_MAX]; //macierz sasiedztwa dla funkcji liczacej najkrotsze sciezki
+int count = 0;                      //licznik wierzcholkow
+int edgesNum = 0;                   //liczba krawedzi
+int tmp = 0;                        //zmienna pomocnicza uzywana do uzupelnienia tablicy krawedzi
+int vertices[VERT_MAX] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};   //tablica wierzcholkow
+char edges[EDGE_MAX*4] = {0};                                        //tablica krawedzi; do wypisywania
+char centVert[VERT_MAX*2] = {0};                                     //tablica wierz. cent.; do wypisywania
+int path[VERT_MAX];           //dlugosc sciezki
+unsigned int putNum = 0;      //liczba zadan typu "put"
+unsigned int prevPutNum = 0;  //poprzedni payload "put", uzywany przy opcji "observe"
+unsigned int getNum = 0;      //liczba zadan typu "get"
 
+//f. liczaca dlugosc liczby w znakach char
 int arrayLen(int number)
 {
     uint8_t len = 0;
@@ -36,7 +34,7 @@ int arrayLen(int number)
     len++;
     return len;
 }
-
+//f. do tworzenia payloadu
 void makePayload(char *payload, int number, int len)
 {
     while (len > 0)
@@ -46,41 +44,25 @@ void makePayload(char *payload, int number, int len)
         len--;
     }
 }
-
-// czy pierwszy wierz. jest juz na liscie
-bool checkVerA(int a)
-{
-    bool flagA = false;
-
+//sprawdzenie czy wierzcholek znajduje sie juz w tablicy wierzcholkow
+bool checkVer(int a)
+{ 
     for (int i = 0; i < VERT_MAX; i++)
     {
         if (vertices[i] == a)
-            flagA = true;
+            return true;
     }
-    return flagA;
+    return false;
 }
-// czy drugi wierz. jest juz na liscie
-bool checkVerB(int b)
-{
-    bool flagB = false;
 
-    for (int i = 0; i < VERT_MAX; i++)
-    {
-        if (vertices[i] == b)
-            flagB = true;
-    }
-    return flagB;
-}
-//sortowanie wierzcholkow w tablicy od najmniejszego
+//sortowanie wierzcholkow w tablicy od najmniejszego do najwiekszego (bubble sort)
 void sort(int arr[])
 {
     {
         for (int i = 0; i < count - 1; i++)
-
             for (int j = 0; j < count - i - 1; j++)
                 if (arr[j] > arr[j + 1])
                 {
-
                     int tmp = arr[j];
                     arr[j] = arr[j + 1];
                     arr[j + 1] = tmp;
@@ -91,33 +73,34 @@ void sort(int arr[])
 bool addEdge(int a, int b)
 {
     //sprawdzenie czy graf zachowa spojnosc
-    if (count != 0 && checkVerA(a) == false && checkVerB(b) == false)
+    if (count != 0 && checkVer(a) == false && checkVer(b) == false)
     {
         return false;
     }
     else
     {
-
-        if (checkVerA(a) == false)
+        //wierzcholek nie jest dodawany do tablicy w przypadku gdy juz sie tam znajduje
+        if (checkVer(a) == false)
         {
             vertices[count] = a;
             count++;
         }
-        if (checkVerB(b) == false)
+        if (checkVer(b) == false)
         {
             vertices[count] = b;
             count++;
         }
         sort(vertices);
         if (adj_matrix[a][b] != 1)
-        {
+        {   
             adj_matrix[a][b] = 1; //uzupelnienie macierzy sasiedztwa
             adj_matrix[b][a] = 1;
+            //dodanie krawedzi do tablicy
             char ap = a + 48;
             char bp = b + 48;
-            if (edges[0] != '\0')
+            if (edges[0] != '\0') 
             {
-                edges[tmp] = {44};
+                edges[tmp] = {44}; //zmienna tmp zadeklarowana globalnie, pomaga w poprawnym uzupelnieniu tablicy krawedzi
                 tmp++;
             }
             edges[tmp] = {ap};
@@ -126,14 +109,13 @@ bool addEdge(int a, int b)
             tmp++;
             edges[tmp] = {bp};
             tmp++;
-
             edgesNum++;
             return true;
         }
         return false;
     }
 }
-
+//wyliczenie sumy dlugosci sciezek
 int edgeSum(int dist[])
 {
     int sum = 0;
@@ -146,13 +128,12 @@ int edgeSum(int dist[])
     }
     return sum;
 }
-int minDistance(int dist[], bool sptSet[])
+//f. obliczajaca najkrotsze sciezki 
+int minDistance(int dist[], bool inc[])
 {
-    // Initialize min value
     int min = INT_MAX, min_index = -1;
-
     for (int v = 0; v < VERT_MAX; v++)
-        if (sptSet[v] == false && dist[v] <= min)
+        if (inc[v] == false && dist[v] <= min)
         {
             min = dist[v];
             min_index = v;
@@ -160,60 +141,45 @@ int minDistance(int dist[], bool sptSet[])
 
     return min_index;
 }
-
+//agorytm do obliczania najkrotszych sciezek dla wierzcholka
 int dijkstra(int src)
 {
-    int dist[VERT_MAX] = {0}; // The output array.  dist[i] will hold the shortest
-    // distance from src to i
-
-    bool sptSet[VERT_MAX] = {0}; // sptSet[i] will be true if vertex i is included in shortest
-    // path tree or shortest distance from src to i is finalized
-
-    // Initialize all distances as INFINITE and stpSet[] as false
+    int dist[VERT_MAX]; //odleglosci do poszczegolnych wierzcholkow od wierzcholka badanego
+    bool inc[VERT_MAX]; //wierzholek zawarty w najkrotszej sciezce
     for (int i = 0; i < VERT_MAX; i++)
     {
         dist[i] = INT_MAX;
-        sptSet[i] = false;
+        inc[i] = false;
     }
-
-    // Distance of source vertex from itself is always 0
-    dist[src] = 0;
-
-    // Find shortest path for all vertices
+    dist[src] = 0; //odleglosc wierzcholka do samego siebie 
     for (int i = 0; i < VERT_MAX - 1; i++)
     {
-        // Pick the minimum distance vertex from the set of vertices not
-        // yet processed. u is always equal to src in the first iteration.
-        int u = minDistance(dist, sptSet);
-
-        // Mark the picked vertex as processed
-        sptSet[u] = true;
-
-        // Update dist value of the adjacent vertices of the picked vertex.
+        int u = minDistance(dist, inc);
+        inc[u] = true;
         for (int v = 0; v < VERT_MAX; v++)
-
-            // Update dist[v] only if is not in sptSet, there is an edge from
-            // u to v, and total weight of path from src to  v through u is
-            // smaller than current value of dist[v]
-            if (adj_matrix[u][v] > 0 && sptSet[v] == false && dist[u] != INT_MAX && (dist[u] + adj_matrix[u][v]) < dist[v])
-                dist[v] = dist[u] + adj_matrix[u][v];
+        {
+          if (adj_matrix[u][v] > 0 && inc[v] == false && dist[u] != INT_MAX && (dist[u] + adj_matrix[u][v]) < dist[v])
+          {
+             dist[v] = dist[u] + adj_matrix[u][v];
+          }
+               
+        }      
     }
-
     return edgeSum(dist);
 }
+//wyliczanie wszystkich wierzcholkow centralnych
 void centralVert()
 {
     if (count != 0)
     {
         for (int i = 0; i < count; i++)
         {
-            //path[i] = dijkstra(i);
-            path[i] = dijkstra(vertices[i]);
+            path[i] = dijkstra(vertices[i]);//obliczanie najkrotszych sciezek dla kazdego wierzcholka
         }
         int tmp2 = 0;
-        int centralVert[VERT_MAX] = {0};
-        int ile = 0;
-        int len = INT_MAX;
+        int centralVert[VERT_MAX] = {0}; //tablica zawierajaca wierzcholki centralne
+        int ile = 0;                     //liczba wierzcholkow centralnych
+        int len = INT_MAX;               //dlugosc sciezek
         for (int i = 0; i < count; i++)
         {
             if (path[i] < len && path[i] != 0)
@@ -237,7 +203,7 @@ void centralVert()
         centVert[ile * 2 - 1] = '\0';
     }
 }
-
+//f. sprawdzajaca jak ubsluzyc zadanie get dla krawedzi
 int parsePacket(uint8_t *payload, int payloadLen)
 {
     int x, y, z;
@@ -247,78 +213,71 @@ int parsePacket(uint8_t *payload, int payloadLen)
     payload++;
     y = *payload - 48;
     payload++;
-    //czyszczenie bufora TRZEBA ZROBIC CHOCIAZ WCALE NIE TRZEBA
-    //czyli doopanowac payload
     if ((x >= 0 && x <= 9) && (y >= 0 && y <= 9) && z == ',' && *payload == 0 && edgesNum < EDGE_MAX && x != y)
     {
         if (addEdge(x, y))
-            return 0;
+            return 0;//mozna dodac krawedz
         else
         {
-            return 2;
+            return 2;//nie mozna dodac krawedzi
         }
     }
     else if (edgesNum >= EDGE_MAX)
     {
-        return 1;
+        return 1;//osiagnieta maksymalna liczba krawedzi
     }
     else
-        return 2;
+        return 2;//nie mozna dodac wierzcholka (blad formatowania)
 }
 
+//wywolanie wierzcholkow centralnych (get)
 void callback_center(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
 {
-    //Serial.println("Central Vertices");
     if (packet->code == COAP_GET && count == 0)
     {
         getNum++;
-        coap.sendResponse(ip, port, 132, COAP_TEXT_PLAIN, "", (uint8_t)0);
+        coap.sendResponse(ip, port, 132, COAP_TEXT_PLAIN, "", (uint8_t)0);//brak wierzcholkow centralnych
     }
     else if (packet->code == COAP_GET && count != 0)
     {
         getNum++;
         centralVert();
-        if (accept == 97 || accept == 100)
-        {
-            coap.sendResponse(ip, port, COAP_TEXT_PLAIN, centVert, (uint8_t)strlen(centVert));
-        }
-        else if (accept == 40)
-        {
-            int len = ((int)strlen(centVert)) + 4;
-            char payload[len] = {0};
-            payload[0] = '<';
-            payload[1] = '/';
-            for (int i = 0; i < strlen(centVert); i++)
-            {
-                payload[i + 2] = centVert[i];
+        if(accept == 97 || accept == 100){
+          coap.sendResponse(ip, port,  COAP_TEXT_PLAIN, centVert, (uint8_t)strlen(centVert));//wierzcholki centralne
+        }else if (accept == 40){
+           int len = ((int)strlen(centVert))+4;
+           char payload[len]={0};
+           payload[0] = '<';
+           payload[1] = '/';
+           for(int i=0; i < strlen(centVert); i++){
+              payload[i+2] = centVert[i];
             }
-            payload[len - 2] = '>';
-            payload[len - 1] = ';';
-            coap.sendResponse(ip, port, COAP_APPLICATION_LINK_FORMAT, payload, (uint8_t)len);
-        }
+           payload[len-2] = '>';
+           payload[len-1] = ';';
+           coap.sendResponse(ip, port, COAP_APPLICATION_LINK_FORMAT, payload, (uint8_t)len);//wierzcholki centralne
+          }
     }
 }
-//CoAP server Edges endpoint
+//wywolanie krawedzi (get i put)
 void callback_edges(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
 {
-    //Serial.println("Edges");
 
     if (packet->code == COAP_PUT)
     {
         putNum++;
         if (parsePacket(packet->payload, packet->payloadlen) == 0)
         {
-            coap.sendResponse(ip, port, 65, COAP_TEXT_PLAIN, "", (uint8_t)0);
+            coap.sendResponse(ip, port, 65, COAP_TEXT_PLAIN, "", (uint8_t)0);//poprawne utworzenie krawedzi
         }
         else if (parsePacket(packet->payload, packet->payloadlen) == 1)
         {
-            coap.sendResponse(ip, port, 160, COAP_TEXT_PLAIN, "", (uint8_t)0);
+            coap.sendResponse(ip, port, 160, COAP_TEXT_PLAIN, "", (uint8_t)0);//blad wewnetrzny serwera - przepelnienie pamieci
         }
         else if (parsePacket(packet->payload, packet->payloadlen) == 2)
 
         {
-            //ewntualnie wporwadzic kod bledu
-            coap.sendResponse(ip, port, 133, COAP_TEXT_PLAIN, "", (uint8_t)0);
+            coap.sendResponse(ip, port, 133, COAP_TEXT_PLAIN, "", (uint8_t)0);//niedozwolona operacja (graf niespojny, zle formatowanie, bledne dane
+
         }
     }
     else if (packet->code == COAP_GET)
@@ -341,23 +300,23 @@ void callback_edges(coapPacket *packet, ObirIPAddress ip, int port, int obs, uin
                 }
                 payload[len - 2] = '"';
                 payload[len - 1] = '}';
-
-                coap.sendResponse(ip, port, COAP_APPLICATION_JSON, payload, (uint8_t)len);
+               
+                coap.sendResponse(ip, port, COAP_APPLICATION_JSON, payload, (uint8_t)len, 1);//wypisanie krawedzi
             }
             else
             {
-                coap.sendResponse(ip, port, COAP_TEXT_PLAIN, edges, (uint8_t)strlen(edges));
+                coap.sendResponse(ip, port, COAP_TEXT_PLAIN, edges, (uint8_t)strlen(edges), 1);//wypisanie krawedzi
             }
         }
 
         else
         {
-            coap.sendResponse(ip, port, 132, COAP_TEXT_PLAIN, "", (uint8_t)0);
+            coap.sendResponse(ip, port, 132, COAP_TEXT_PLAIN, "", (uint8_t)0);//brak krawedzi
         }
     }
 }
 
-//CoAP server Sendpackets endpoint
+//wywolanie liczby wszystkich odp. wyslanych przez serwer (suma get+put)
 void callback_sendPackets(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
 {
     if (packet->code == COAP_GET)
@@ -370,32 +329,31 @@ void callback_sendPackets(coapPacket *packet, ObirIPAddress ip, int port, int ob
         coap.sendResponse(ip, port, COAP_TEXT_PLAIN, payload, (uint8_t)len);
     }
 }
-
+//wywolanie liczby odp. na zadanie typu put wyslanych przez serwer
 void callback_PutNumber(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
 {
     if (packet->code == COAP_GET)
     {
         getNum++;
-        //Serial.println("PutNumber");
         uint8_t len = arrayLen(putNum);
         char payload[len];
         makePayload(payload, putNum, len);
         coap.sendResponse(ip, port, COAP_TEXT_PLAIN, payload, len);
     }
 }
+//wywolanie liczby odp. na zadanie typu get wyslanych przez serwer
 void callback_GetNumber(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
 {
     if (packet->code == COAP_GET)
     {
         getNum++;
-        //Serial.println("GetNumber");
         uint8_t len = arrayLen(getNum);
         char payload[len];
         makePayload(payload, getNum, len);
         coap.sendResponse(ip, port, COAP_TEXT_PLAIN, payload, (uint8_t)len);
     }
 }
-
+//konfiguracja serwera
 void setup()
 {
     Serial.begin(9600);
@@ -419,7 +377,7 @@ void loop()
         uint8_t len = arrayLen(putNum);
         char payload[len];
         makePayload(payload, putNum, len);
-        coap.notification(payload, "PutNumber");
+        coap.notification(payload, "PutNumber", len);
         prevPutNum = putNum;
     }
 

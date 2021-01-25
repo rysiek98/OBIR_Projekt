@@ -6,10 +6,22 @@ modify it under the terms of the GNU Lesser General Public
 License as published by the Free Software Foundation; either
 version 3 of the License, or (at your option) any later version.
 
+
+The ESP-CoAP is maintained by thingTronics Innovations.
+
+Main contributor:
+
+    Poornima Nagesh @poornima.nagesh@thingtronics.com
+    Lovelesh Patel @lovelesh.patel@thingtronics.com
+
+https://github.com/automote/ESP-CoAP
 */
 
-#ifndef __SIMPLE_COAP_H__
-#define __SIMPLE_COAP_H__
+
+//#ifndef __SIMPLE_COAP_H__
+//#define __SIMPLE_COAP_H__
+#ifndef _OBIR_coap_server_H_
+#define _OBIR_coap_server_H_
 
 //#include <WiFiUdp.h>
 #include <Arduino.h>
@@ -17,6 +29,7 @@ version 3 of the License, or (at your option) any later version.
 #include <ObirEthernetUdp.h>
 
 //current coap attributes
+//Atrybuty CoAP'a
 #define COAP_DEFAULT_PORT 5683
 #define COAP_VERSION 1
 #define COAP_HEADER_SIZE 4
@@ -24,17 +37,19 @@ version 3 of the License, or (at your option) any later version.
 #define COAP_PAYLOAD_MARKER 0xFF
 
 //configuration
+//Konfiguracja CoAP'a
 #define MAX_OPTION_NUM 10
-#define BUF_MAX_SIZE 127
+#define BUF_MAX_SIZE 128
 #define MAX_CALLBACK 10
 //#define MAX_AGE_DEFAULT 60
 #define MAX_AGE_DEFAULT 15
 #define MAX_OBSERVER 10
 
-//Wyliczanie numer dodatkowej opcji
+//Wyliczanie numer opcji
 #define COAP_OPTION_DELTA(v, n) (v < 13 ? (*n = (0xFF & v)) : (v <= 0xFF + 13 ? (*n = 13) : (*n = 14)))
 
 //coap message types
+//CoAP: typy wiadomosci
 typedef enum
 {
 	COAP_CON = 0,
@@ -44,6 +59,7 @@ typedef enum
 } COAP_TYPE;
 
 //coap method values
+//CoAP: metody
 typedef enum
 {
 	COAP_EMPTY = 0,
@@ -54,6 +70,7 @@ typedef enum
 } COAP_METHOD;
 
 //coap response values
+//CoAP: kody odpowiedzi
 typedef enum
 {
 	COAP_EMPTY_MESSAGE = 0,
@@ -80,6 +97,7 @@ typedef enum
 } COAP_RESPONSE_CODE;
 
 //coap option values
+//CoAP: kody opcji
 typedef enum
 {
 	COAP_IF_MATCH = 1,
@@ -101,6 +119,7 @@ typedef enum
 } COAP_OPTION_NUMBER;
 
 //coap content format types
+//CoAP: kody formatów
 typedef enum
 {
 	COAP_TEXT_PLAIN = 0,
@@ -113,6 +132,7 @@ typedef enum
 } COAP_CONTENT_TYPE;
 
 //coap class::used for resource discovery request
+//Klasa używana do Discovery
 class resource_dis
 {
 public:
@@ -122,6 +142,7 @@ public:
 };
 
 //coap option class
+//Klasa wykorzystywana do przechowywania opcji
 class coapOption
 {
 public:
@@ -131,6 +152,7 @@ public:
 };
 
 //coap packet class
+//Klasa definiuje pakiet CoAP
 class coapPacket
 {
 public:
@@ -144,9 +166,9 @@ public:
 	uint16_t messageid;
 	uint8_t optionnum;
 	coapOption options[MAX_OPTION_NUM];
-
+    //Metoda parsuje otrzymany pakiet na obiekt klasy coapPacket
 	void bufferToPacket(uint8_t buffer[], int32_t packetlen);
-
+    //Metoda parsuje otrzymane opcje na obiekty klasy coapOption
 	int parseOption(coapOption *option, uint16_t *running_delta, uint8_t **buf, size_t buflen);
 	coapPacket();
 
@@ -159,8 +181,10 @@ public:
     uint8_t accept();
 };
 
+//Callback, pozwala na wywołanie odpowiednich funkcji przez program (automatycznie)
 typedef void (*callback)(coapPacket *, ObirIPAddress, int, int, uint8_t);
 
+//Klasa definiuje obiekt coapUri
 class coapUri
 {
 public:
@@ -168,11 +192,13 @@ public:
 	callback c[MAX_CALLBACK];
 
 	coapUri();
+	//Dodanie nowego uti = dodanie nowego zasobu
 	void add(callback call, String url, resource_dis resource[]);
 	callback find(String url);
 };
 
 //coap class::used for maintaining the details of clients making observe request
+//Klasa coapObserver odpowiada za przechowywanie i działanie Observatora
 class coapObserver
 {
 public:
@@ -188,35 +214,46 @@ public:
     uint8_t *observer_storedResponse;
     uint8_t observer_storedResponseLen;
     int observer_repeatedPayload;
-
+    //Usuwa obseravora
     void deleteObserver();
 };
 
 //coap class
+//Główna klasa, steruje pracą całości
 class coapServer
 {
 public:
 
 	coapServer();
+	//Metoda uruchamia serwer
 	bool start();
 	bool start(int port);
-
+    //Metoda tworzy serwer
 	void server(callback c, String url);
+    //Głóowna pętla sewera z niej wywoływane są odpowienie funkcje
 	bool loop();
-
+    //Metoda wysyłą pakiet
 	uint16_t sendPacket(coapPacket *packet, ObirIPAddress ip, int port);
+    //Metoda odkrywa dostępne zasoby
 	void resourceDiscovery(coapPacket *packet, ObirIPAddress ip, int port, resource_dis resource[]);
-
+    //Metoda formatuje pakiet do wysłania
 	void sendResponse(ObirIPAddress ip, int port, char *payload,uint8_t payloadLen);
 	void sendResponse(ObirIPAddress ip, int port, COAP_CONTENT_TYPE contentType, char *payload, uint8_t payloadLen);
+    void sendResponse(ObirIPAddress ip, int port, COAP_CONTENT_TYPE contentType, char *payload, uint8_t payloadLen, int store);
     void sendResponse(ObirIPAddress ip, int port, int erType, COAP_CONTENT_TYPE contentType, char *payload, uint8_t payloadLen);
+    void sendResponse(ObirIPAddress ip, int port, int erType, COAP_CONTENT_TYPE contentType, char *payload, uint8_t payloadLen, int store);
+    //Metoda dodaje obserwatora
 	void addObserver(String url, coapPacket *request, ObirIPAddress ip, int port);
-	void notification(char *payload, String url);
+    //Metoda wysyła notyfikacje z nowym payloadem (Obserwator)
+	void notification(char *payload, String url, uint8_t payloadLen);
     //void sendResponse(char *payload);
+    //Metoda odpowiada Not Found gdy prosimy o nieistniejący zasób
 	void notFound(coapPacket *packet, ObirEthernetUDP Udp);
+    //Metoda pomocnicza, porównuje dwie tablice
     bool compareArray(uint8_t a[], uint8_t b[], uint8_t lenA, uint8_t lenB);
+    //Metoda pomocnicza, wylicza długość tablicy
     uint8_t countLength(uint8_t messageid);
 
 };
 
-#endif
+#endif _OBIR_coap_server_H_
