@@ -41,7 +41,7 @@ https://github.com/automote/ESP-CoAP
 #define MAX_CALLBACK 5
 //#define MAX_AGE_DEFAULT 60
 #define MAX_AGE_DEFAULT 15
-#define MAX_OBSERVER 4
+#define MAX_OBSERVER 3
 
 //Wyliczanie numer opcji
 #define COAP_OPTION_DELTA(v, n) (v < 13 ? (*n = (0xFF & v)) : (v <= 0xFF + 13 ? (*n = 13) : (*n = 14)))
@@ -117,7 +117,7 @@ typedef enum
 } COAP_OPTION_NUMBER;
 
 //coap content format types
-//CoAP: kody formatów
+//CoAP: kody formatow
 typedef enum
 {
 	COAP_TEXT_PLAIN = 0,
@@ -130,7 +130,7 @@ typedef enum
 } COAP_CONTENT_TYPE;
 
 //coap class::used for resource discovery request
-//Klasa używana do Discovery
+//Klasa uzywana do Discover
 class resource_dis
 {
 public:
@@ -197,8 +197,7 @@ public:
 
 //coap class::used for maintaining the details of clients making observe request
 //Klasa coapObserver odpowiada za przechowywanie i działanie Observatora
-class coapObserver
-{
+class coapObserver{
 public:
     uint8_t *observer_token;
     uint8_t observer_tokenlen;
@@ -212,29 +211,28 @@ public:
     uint8_t *observer_storedResponse;
     uint8_t observer_storedResponseLen;
     uint8_t observer_repeatedPayload;
-    //Usuwa obseravora
+    //Usuwa obserwatora
     void deleteObserver();
 };
 
 //coap class
-//Główna klasa, steruje pracą całości
-class coapServer
-{
-public:
+//Glowna klasa, steruje praca calosci
+class coapServer{
 
+public:
 	coapServer();
 	//Metoda uruchamia serwer
 	bool start();
 	bool start(int port);
     //Metoda tworzy serwer
 	void server(callback c, String url);
-    //Głóowna pętla sewera z niej wywoływane są odpowienie funkcje
+    //Glowna petla sewera z niej wywolywane sa odpowienie funkcje
 	bool loop();
-    //Metoda wysyłą pakiet
+    //Metoda wysylą pakiet
 	uint16_t sendPacket(coapPacket *packet, ObirIPAddress ip, int port);
-    //Metoda odkrywa dostępne zasoby
+    //Metoda odkrywa dostepne zasoby
 	void resourceDiscovery(coapPacket *packet, ObirIPAddress ip, int port, resource_dis resource[]);
-    //Metoda formatuje pakiet do wysłania
+    //Metoda formatuje pakiet do wyslania
 	void sendResponse(ObirIPAddress ip, int port, char *payload,uint8_t payloadLen);
 	void sendResponse(ObirIPAddress ip, int port, COAP_CONTENT_TYPE contentType, char *payload, uint8_t payloadLen);
     void sendResponse(ObirIPAddress ip, int port, COAP_CONTENT_TYPE contentType, char *payload, uint8_t payloadLen, int store);
@@ -242,14 +240,14 @@ public:
     void sendResponse(ObirIPAddress ip, int port, int erType, COAP_CONTENT_TYPE contentType, char *payload, uint8_t payloadLen, int store);
     //Metoda dodaje obserwatora
 	void addObserver(String url, coapPacket *request, ObirIPAddress ip, int port);
-    //Metoda wysyła notyfikacje z nowym payloadem (Obserwator)
+    //Metoda wysyla notyfikacje z nowym payloadem (Obserwator)
 	void notification(char *payload, String url, uint8_t payloadLen);
     //void sendResponse(char *payload);
-    //Metoda odpowiada Not Found gdy prosimy o nieistniejący zasób
-	void notFound(coapPacket *packet, ObirEthernetUDP Udp);
-    //Metoda pomocnicza, porównuje dwie tablice
+    //Metoda odpowiada Not Found gdy prosimy o nieistniejący zasob
+	void sendError(coapPacket *packet, ObirEthernetUDP Udp, COAP_RESPONSE_CODE error);
+    //Metoda pomocnicza, porownuje dwie tablice
     bool compareArray(uint8_t a[], uint8_t b[], uint8_t lenA, uint8_t lenB);
-    //Metoda pomocnicza, wylicza długość tablicy
+    //Metoda pomocnicza, wylicza dlugosc tablicy
     uint8_t countLength(uint8_t messageid);
 
 };
