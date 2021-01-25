@@ -6,9 +6,7 @@ modify it under the terms of the GNU Lesser General Public
 License as published by the Free Software Foundation; either
 version 3 of the License, or (at your option) any later version.
 
-
 The ESP-CoAP is maintained by thingTronics Innovations.
-
 Main contributor:
 
     Poornima Nagesh @poornima.nagesh@thingtronics.com
@@ -38,12 +36,12 @@ https://github.com/automote/ESP-CoAP
 
 //configuration
 //Konfiguracja CoAP'a
-#define MAX_OPTION_NUM 10
+#define MAX_OPTION_NUM 6
 #define BUF_MAX_SIZE 128
-#define MAX_CALLBACK 10
+#define MAX_CALLBACK 5
 //#define MAX_AGE_DEFAULT 60
 #define MAX_AGE_DEFAULT 15
-#define MAX_OBSERVER 10
+#define MAX_OBSERVER 4
 
 //Wyliczanie numer opcji
 #define COAP_OPTION_DELTA(v, n) (v < 13 ? (*n = (0xFF & v)) : (v <= 0xFF + 13 ? (*n = 13) : (*n = 14)))
@@ -213,7 +211,7 @@ public:
     uint8_t observer_etagLen;
     uint8_t *observer_storedResponse;
     uint8_t observer_storedResponseLen;
-    int observer_repeatedPayload;
+    uint8_t observer_repeatedPayload;
     //Usuwa obseravora
     void deleteObserver();
 };

@@ -11,13 +11,13 @@
 byte MAC[] = {0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x02};
 coapServer coap;
 int adj_matrix[VERT_MAX][VERT_MAX]; //macierz sasiedztwa dla funkcji liczacej najkrotsze sciezki
-int count = 0;                      //licznik wierzcholkow
-int edgesNum = 0;                   //liczba krawedzi
-int tmp = 0;                        //zmienna pomocnicza uzywana do uzupelnienia tablicy krawedzi
+uint8_t count = 0;                      //licznik wierzcholkow
+uint8_t edgesNum = 0;                   //liczba krawedzi
+uint8_t tmp = 0;                        //zmienna pomocnicza uzywana do uzupelnienia tablicy krawedzi
 int vertices[VERT_MAX] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};   //tablica wierzcholkow
 char edges[EDGE_MAX*4] = {0};                                        //tablica krawedzi; do wypisywania
 char centVert[VERT_MAX*2] = {0};                                     //tablica wierz. cent.; do wypisywania
-int path[VERT_MAX];           //dlugosc sciezki
+uint8_t path[VERT_MAX];           //dlugosc sciezki
 unsigned int putNum = 0;      //liczba zadan typu "put"
 unsigned int prevPutNum = 0;  //poprzedni payload "put", uzywany przy opcji "observe"
 unsigned int getNum = 0;      //liczba zadan typu "get"
@@ -240,21 +240,21 @@ void callback_center(coapPacket *packet, ObirIPAddress ip, int port, int obs, ui
     }
     else if (packet->code == COAP_GET && count != 0)
     {
-        getNum++;
-        centralVert();
-        if(accept == 97 || accept == 100){
-          coap.sendResponse(ip, port,  COAP_TEXT_PLAIN, centVert, (uint8_t)strlen(centVert));//wierzcholki centralne
-        }else if (accept == 40){
-           int len = ((int)strlen(centVert))+4;
-           char payload[len]={0};
-           payload[0] = '<';
-           payload[1] = '/';
-           for(int i=0; i < strlen(centVert); i++){
-              payload[i+2] = centVert[i];
-            }
-           payload[len-2] = '>';
-           payload[len-1] = ';';
-           coap.sendResponse(ip, port, COAP_APPLICATION_LINK_FORMAT, payload, (uint8_t)len);//wierzcholki centralne
+       getNum++;
+       centralVert();
+       if (accept == 40){
+         int len = ((int)strlen(centVert))+4;
+         char payload[len]={0};
+         payload[0] = '<';
+         payload[1] = '/';
+         for(int i=0; i < strlen(centVert); i++){
+            payload[i+2] = centVert[i];
+          }
+         payload[len-2] = '>';
+         payload[len-1] = ';';
+         coap.sendResponse(ip, port, COAP_APPLICATION_LINK_FORMAT, payload, (uint8_t)len);//wierzcholki centralne
+        }else{
+           coap.sendResponse(ip, port,  COAP_TEXT_PLAIN, centVert, (uint8_t)strlen(centVert));//wierzcholki centralne
           }
     }
 }

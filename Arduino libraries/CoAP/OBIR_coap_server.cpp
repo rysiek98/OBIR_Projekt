@@ -6,6 +6,13 @@ modify it under the terms of the GNU Lesser General Public
 License as published by the Free Software Foundation; either
 version 3 of the License, or (at your option) any later version.
 
+The ESP-CoAP is maintained by thingTronics Innovations.
+Main contributor:
+
+    Poornima Nagesh @poornima.nagesh@thingtronics.com
+    Lovelesh Patel @lovelesh.patel@thingtronics.com
+
+https://github.com/automote/ESP-CoAP
 */
 
 #include "OBIR_coap_server.h"
@@ -34,12 +41,14 @@ static uint8_t obsstate = 10;
 //unsigned long previousMillis=0;
 //char *previousPayload = "";
 //int16_t messid = 200;
+
+//Zmienne globalne stored przechowują zapisaną odpowiedź. Funkcjonalność własna
 uint8_t *storedETag = nullptr;
 uint8_t storedETagLen = 0;
 uint8_t *storedResponse = nullptr;
 uint8_t storedResponseLen = 0;
 
-//Konstruktor coapURI
+//Konstruktor coapURI. Funkcja niemodyfikowana.
 coapUri::coapUri()
 {
     for (int i = 0; i < MAX_CALLBACK; i++)
@@ -49,7 +58,7 @@ coapUri::coapUri()
     }
 }
 
-//Dodawanie nowego zasobu
+//Dodawanie nowego zasobu.  Funkcja niemodyfikowana.
 void coapUri::add(callback call, String url, resource_dis resource[])
 {
 
@@ -76,7 +85,7 @@ void coapUri::add(callback call, String url, resource_dis resource[])
             return;
         }
 }
-//Wyszukiwanie żądanego uri
+//Wyszukiwanie żądanego uri.  Funkcja niemodyfikowana.
 callback coapUri::find(String url)
 {
     for (int i = 0; i < MAX_CALLBACK; i++)
@@ -84,16 +93,16 @@ callback coapUri::find(String url)
             return c[i];
     return NULL;
 }
-
+//Funkcja dodaje nowy zasób. Funkcja niemodyfikowana.
 void coapServer::server(callback c, String url)
 {
     uri.add(c, url, resource);
 }
-//Konstruktor klasy Coap
+//Konstruktor klasy Coap. Funkcja niemodyfikowana.
 coapServer::coapServer()
 {
 }
-//Rozpoczynamy działanie serwera
+//Rozpoczynamy działanie serwera. Funkcja niemodyfikowana.
 bool coapServer::start()
 {
     this->start(COAP_DEFAULT_PORT);
@@ -105,7 +114,7 @@ bool coapServer::start(int port)
     Udp.begin(port);
     return true;
 }
-//Konstruktor klasy CoapPacket
+//Konstruktor klasy CoapPacket.
 coapPacket::coapPacket()
 {
 }
@@ -134,7 +143,7 @@ uint8_t *coapPacket::token_()
 {
     return token;
 }
-//Parsowanie dodatkowej opcji
+//Parsowanie dodatkowej opcji. Funkcja niemodyfikowana.
 int coapPacket::parseOption(coapOption *option, uint16_t *running_delta, uint8_t **buf, size_t buflen)
 {
 
@@ -145,6 +154,7 @@ int coapPacket::parseOption(coapOption *option, uint16_t *running_delta, uint8_t
 
     if (buflen < headlen)
         return -1;
+
     //Początkowa wartość delty
     delta = (p[0] & 0xF0) >> 4;
     len = p[0] & 0x0F;
@@ -198,10 +208,10 @@ int coapPacket::parseOption(coapOption *option, uint16_t *running_delta, uint8_t
     return 0;
 }
 
-//Główna pętla programu
+//Główna pętla programu. Funkcja znacznie zmodyfikowana.
 bool coapServer::loop()
 {
-    //Rezerwujemy pamięć na odebrany pakiet
+    //Rezerwujemy pamięć na odebrany pakiet.
     uint8_t *buffer = new uint8_t[BUF_MAX_SIZE];
     for(int i=0;i<BUF_MAX_SIZE;i++)
     {
@@ -209,13 +219,13 @@ bool coapServer::loop()
     }
     int32_t packetlen = Udp.parsePacket();
 
-    //Warunek decydujący o rozpoczęciu przetwarzania odebranego pakietu
+    //Warunek decydujący o rozpoczęciu przetwarzania odebranego pakietu.
     if (packetlen > 0) {
 
         packetlen = Udp.read(buffer, packetlen >= BUF_MAX_SIZE ? BUF_MAX_SIZE : packetlen);
-        //Odebrany pakiet parsujemy na obiekt klasy coapPacket
+        //Odebrany pakiet parsujemy na obiekt klasy coapPacket.
         request->bufferToPacket(buffer, packetlen);
-        //Sprawdzamy czy pakiet ma URI_PATH i odczytujemy jego zawartość
+        //Sprawdzamy czy pakiet ma URI_PATH i odczytujemy jego zawartość.
         String url = "";
         for (int i = 0; i < request->optionnum; i++) {
             if (request->options[i].number == COAP_URI_PATH && request->options[i].length > 0) {
@@ -227,10 +237,10 @@ bool coapServer::loop()
                 url += urlname;
             }
         }
-        //Jeśli odebrane URI nie jest w liście zasobów, nie jest to .well-known/core a pakiet nie jest pusty to  wyśli Not Found
+        //Jeśli odebrane URI nie jest w liście zasobów, nie jest to .well-known/core a pakiet nie jest pusty to  wyśli Not Found.
         if (!uri.find(url) && !(url == String(".well-known/core")) && !(request->code_() == COAP_EMPTY)) {
             notFound(request, Udp);
-        } else {//Gdy dostaniemy pusty pakiet
+        } else {//Gdy dostaniemy pusty pakiet.
             if (request->code_() == COAP_EMPTY && (request->type_() == COAP_CON || request->type_() == COAP_RESET || request->type_() == COAP_NONCON)) {
                 if(request->type_() == COAP_CON) {
                     request->type = COAP_ACK;
@@ -242,8 +252,8 @@ bool coapServer::loop()
                 request->payloadlen = 0;
                 request->optionnum = 0;
 
-                if (request->type_() == COAP_RESET) {//Gdy otrzymamy pusty pakiet, z codem Reset to czyścimy liste obserwatorów z tego IP
-                    //Gdy dostaniemy puste żądanie typu COAP_RESET, usuwamy użytkownika z listy obserwatorów
+                if (request->type_() == COAP_RESET) {//Gdy otrzymamy pusty pakiet, z codem Reset to czyścimy liste obserwatorów z tego IP.
+                    //Gdy dostaniemy puste żądanie typu COAP_RESET, usuwamy użytkownika z listy obserwatorów.
                     for (uint8_t i = 0; i < obscount; i++) {
                         if (observer[i].observer_clientip == Udp.remoteIP()) {
                             observer[i].deleteObserver();
@@ -258,7 +268,7 @@ bool coapServer::loop()
             }else if (request->code_() == COAP_GET || request->code_() == COAP_PUT ||
             request->code_() == COAP_POST || request->code_() == COAP_DELETE) {
                 //Generacja odpowiedzi na żądanie: GET, PUT
-                //Dla żądania GET sprawdzamy czy jest ustawiona opcja Observe
+                //Dla żądania GET sprawdzamy czy jest ustawiona opcja Observe.
                 if (request->code_() == COAP_GET) {
                     uint8_t num;
                     for (uint8_t i = 0; i <= request->optionnum; i++) {
@@ -267,7 +277,7 @@ bool coapServer::loop()
                             break;
                         }
                     }
-                    //Usunięcie użytkownika z listy obserwatorów
+                    //Usunięcie użytkownika z listy obserwatorów.
                     if (request->options[num].number == COAP_OBSERVE) {
                         if (*(request->options[num].buffer) == 1) {
                             for (uint8_t i = 0; i < obscount; i++) {
@@ -279,17 +289,17 @@ bool coapServer::loop()
                                     obscount--;
                                 }
                             }
-                            //Wyszukiwanie żądanego zasobu i wywołanie callback zasobu
+                            //Wyszukiwanie żądanego zasobu i wywołanie callback zasobu.
                             uri.find(url)(request, Udp.remoteIP(), Udp.remotePort(), 0,request->accept());
                         } else {
-                            //Dodanie użytkownika do listy obserwatorów
+                            //Dodanie użytkownika do listy obserwatorów.
                             addObserver(url, request, Udp.remoteIP(), Udp.remotePort());
                         }
                     } else if (url == String(".well-known/core")) {
-                        //Gdy wyszukiwane URI to .well-known/core wykonuje funkcje Discovery
+                        //Gdy wyszukiwane URI to .well-known/core wykonuje funkcje Discovery.
                         resourceDiscovery(request, Udp.remoteIP(), Udp.remotePort(), resource);
                     } else {
-                        //Gdy znajdziesz żądane uri wywołaj callback zasobu
+                        //Gdy znajdziesz żądane uri wywołaj callback zasobu.
                         uri.find(url)(request, Udp.remoteIP(), Udp.remotePort(), 0, request->accept());
                     }
                 } else if (request->code_() == COAP_PUT) {
@@ -300,12 +310,12 @@ bool coapServer::loop()
     }
 
     //checking for the change for resource
-    //Obsługa observatora
+    //Obsługa obserwatora.  Funkcjonalność znacznie zmodyfikowana.
     unsigned long currentMillis = millis();
     for (int i = 0; i < obscount; i++)
-    {   //Sprawdzamy czy czas jaki czas upłynął od ostatniego wysłanego pakietu do obserwatora (czy jeszcze jest świeży czy już należy go odświeżyć)
+    {   //Sprawdzamy czy czas jaki czas upłynął od ostatniego wysłanego pakietu do obserwatora (czy jeszcze jest świeży czy już należy go odświeżyć).
         if (currentMillis - observer[i].observer_prevMillis >= (unsigned long)observer[i].observer_maxAge) {
-            //Jeśli wymagane jest odświeżenie ważności odpowiedzi to ustaw wartości pakietu do wysłania i wywołąj callback zasobu
+            //Jeśli wymagane jest odświeżenie ważności odpowiedzi to ustaw wartości pakietu do wysłania i wywołaj callback zasobu.
             request->version = COAP_VERSION;
             request->code = COAP_GET;
             request->type = COAP_NONCON;
@@ -314,17 +324,17 @@ bool coapServer::loop()
             request->options[0].length = 1;
             request->options[0].number = COAP_OBSERVE;
             request->optionnum = 1;
-            //Ustawia wskaźnik na aktualnie aktualizowanego obserwatora
+            //Ustawia wskaźnik na aktualnie aktualizowanego obserwatora.
             actualObserver = &observer[i];
             uri.find(observer[i].observer_url)(request, observer[i].observer_clientip,
                                                observer[i].observer_clientport, 1, request->accept());
             currentMillis = (unsigned long)millis();
-            //Aktualizuje czas ostanie aktualizacji zasobu
+            //Aktualizuje czas ostanie aktualizacji zasobu.
             observer[i].observer_prevMillis = currentMillis;
             actualObserver = nullptr;
         }
     }
-    //Resetowanie atrybutów obiektu coapPacket
+    //Resetowanie atrybutów obiektu.
     delete [] request->token;
     request->token = nullptr;
     request->tokenlen = 0;
@@ -337,7 +347,7 @@ bool coapServer::loop()
     if(request->messageid < 0 && request->messageid > 32000) {
         request->messageid = 10;
     }
-    //Opróźnianie zarezerwowanej pamięci
+    //Opróźnianie zarezerwowanej pamięci.
     delete [] buffer;
     buffer = nullptr;
 }
@@ -557,11 +567,10 @@ bool coapServer::loop()
         previousMillis=millis();
     }
 
-
 }*/
 
 
-//Parsowanie zawartosci buffora na obiekt klasy coapPacket
+//Parsowanie zawartosci buffora na obiekt klasy coapPacket. Funkcja delikatnie modyfikowana.
 void coapPacket::bufferToPacket(uint8_t buffer[], int32_t packetlen)
 {
     //Parsownie nagłówka
@@ -576,6 +585,7 @@ void coapPacket::bufferToPacket(uint8_t buffer[], int32_t packetlen)
         token = nullptr;
     else if (tokenlen <= 8)
     {
+        //token = new uint8_t(tokenlen);
         token = new uint8_t[tokenlen];
         memset(token, 0, tokenlen);
 
@@ -606,6 +616,7 @@ void coapPacket::bufferToPacket(uint8_t buffer[], int32_t packetlen)
                 optionIndex++;
         }
         optionnum = optionIndex;
+        //payload = NULL;
         payload = nullptr;
 
         if (p + 1 < end && *p == 0xFF)
@@ -615,13 +626,14 @@ void coapPacket::bufferToPacket(uint8_t buffer[], int32_t packetlen)
         }
         else
         {
+            //payload = NULL;
             payload = nullptr;
             payloadlen = 0;
         }
     }
 }
 
-//Metoda pozwalająca wysłać pakiet
+//Metoda pozwalająca wysłać pakiet. Funkcja delikatnie modyfikowana.
 uint16_t coapServer::sendPacket(coapPacket *packet, ObirIPAddress ip, int port)
 {
 
@@ -650,6 +662,7 @@ uint16_t coapServer::sendPacket(coapPacket *packet, ObirIPAddress ip, int port)
     packetSize += 4;
 
     //Token
+    //if (packet->token != NULL && packet->tokenlen <= 8)
     if (packet->token != nullptr && packet->tokenlen <= 8)
     {
         memcpy(p, packet->token, packet->tokenlen);
@@ -718,7 +731,7 @@ uint16_t coapServer::sendPacket(coapPacket *packet, ObirIPAddress ip, int port)
     Udp.endPacket();
 }
 
-//Funkcja Discovery
+//Funkcja Discovery. Funkcja modyfikowana.
 //resource discovery
 void coapServer::resourceDiscovery(coapPacket *response, ObirIPAddress ip, int port, resource_dis resource[])
 {
@@ -730,8 +743,9 @@ void coapServer::resourceDiscovery(coapPacket *response, ObirIPAddress ip, int p
         length += resource[i].rt.length();
         length += 5;
     }
-
-    char payload[length-1] = {0};
+    length--;
+    //Zrezygnowaliśmy z wykorzystania Stringa w funkcji, uznaliśmy że char [] będzie lepszy.
+    char payload[length] = {0};
     //String str_res;
     for (int i = 0; i < rcount; i++)
     {
@@ -793,14 +807,15 @@ void coapServer::resourceDiscovery(coapPacket *response, ObirIPAddress ip, int p
 
     response->code = COAP_CONTENT;
     response->payload = (uint8_t *)&payload;
-    response->payloadlen = length-1;
+    response->payloadlen = length;
 
     sendPacket(response, Udp.remoteIP(), Udp.remotePort());
 }
 
-//Metoda służy do przygotowania pakietu z odpowiedzią do wysłania
+//Metoda służy do przygotowania pakietu z odpowiedzią do wysłania. Funkcja modyfikowana.
 void coapServer::sendResponse(ObirIPAddress ip, int port, int erType, COAP_CONTENT_TYPE contentType, char *payload, uint8_t payloadLen, int store)
 {
+    //Tworzymy obiekt w którym bedziemy przechowywać dane do wysłania.
     coapPacket *response = new coapPacket();
 
     response->version = COAP_VERSION;
@@ -810,7 +825,7 @@ void coapServer::sendResponse(ObirIPAddress ip, int port, int erType, COAP_CONTE
     if(request->tokenlen > 0) {
         response->token = request->token;
     }
-    
+
     if (request->type_() == COAP_CON)
     {
         response->type = COAP_ACK;
@@ -844,7 +859,7 @@ void coapServer::sendResponse(ObirIPAddress ip, int port, int erType, COAP_CONTE
         }
 
         response->optionnum = 0;
-
+        //Obsługa ETag dla COAP_GET. Dodana funkcjonalność.
         if(store && !(request->options[num].number == COAP_OBSERVE)){
             if(storedETag == nullptr){
                 storedResponse = new uint8_t[payloadLen];
@@ -886,12 +901,12 @@ void coapServer::sendResponse(ObirIPAddress ip, int port, int erType, COAP_CONTE
                 eTag = 0;
             }
         }
-
+        //Obsługa obserwatora.
         if (request->options[num].number == COAP_OBSERVE){
 
             response->token = actualObserver->observer_token;
             response->tokenlen = actualObserver->observer_tokenlen;
-
+            //Obsługa ETag dla obserwatora. Dodana funkcjonalność.
             if(actualObserver != nullptr){
                 if(compareArray(actualObserver->observer_storedResponse, (uint8_t *)payload, actualObserver->observer_storedResponseLen, payloadLen)){
                     response->options[response->optionnum].buffer = actualObserver->observer_etag;
@@ -956,11 +971,7 @@ void coapServer::sendResponse(ObirIPAddress ip, int port, int erType, COAP_CONTE
 //        response->options[response->optionnum].number = COAP_CONTENT_FORMAT;
 //        response->optionnum++;
 
-//        response->options[response->optionnum].buffer = (uint8_t *)(&contentType);
-//        response->options[response->optionnum].length = 1;
-//        response->options[response->optionnum].number = COAP_CONTENT_FORMAT;
-//        response->optionnum++;
-
+        //Obsługa Content Format. Dodana funkcjonalność.
         char optionBuffer[2] = {0};
         optionBuffer[0] = ((uint16_t)contentType & 0xFF00) >> 8;
         optionBuffer[1] = ((uint16_t)contentType & 0x00FF);
@@ -969,6 +980,7 @@ void coapServer::sendResponse(ObirIPAddress ip, int port, int erType, COAP_CONTE
         response->options[response->optionnum].number = COAP_CONTENT_FORMAT;
         response->optionnum++;
 
+        //Obsługa MAX_AGE. Dodana funkcjonalność.
         uint8_t maxAge = 0;
         if(actualObserver != nullptr) {
             maxAge = (uint8_t)(actualObserver->observer_maxAge / 1000);
@@ -1023,28 +1035,30 @@ void coapServer::sendResponse(ObirIPAddress ip, int port, int erType, COAP_CONTE
 
         sendPacket(response, ip, port);
     }*/
+
+    //Usuwamy obiekt przechowujący pakiet po wysłaniu pakietu.
     delete response;
     response = nullptr;
 }
-
+//Przeciążona funkcja sendResponse.
 void coapServer::sendResponse(ObirIPAddress ip, int port, int erType, COAP_CONTENT_TYPE contentType, char *payload, uint8_t payloadLen){
     this->sendResponse(ip, port, erType, contentType, payload, payloadLen, 0);
 }
-
+//Przeciążona funkcja sendResponse
 void coapServer::sendResponse(ObirIPAddress ip, int port, COAP_CONTENT_TYPE contentType, char *payload, uint8_t payloadLen, int store){
     this->sendResponse(ip, port, -1, contentType, payload, payloadLen, store);
 }
-
+//Przeciążona funkcja sendResponse
 void coapServer::sendResponse(ObirIPAddress ip, int port, COAP_CONTENT_TYPE contentType, char *payload, uint8_t payloadLen){
     this->sendResponse(ip, port, -1, contentType, payload, payloadLen,0);
 }
-
+//Przeciążona funkcja sendResponse
 void coapServer::sendResponse(ObirIPAddress ip, int port, char *payload, uint8_t payloadLen)
 {
     this->sendResponse(ip, port, COAP_TEXT_PLAIN, payload, payloadLen,0);
 }
 
-//Orginalna funkcja sendResponse
+//Orginalna funkcja sendResponse.
 /*void coapServer::sendResponse( IPAddress ip, int port, char *payload) {
 
 
@@ -1124,7 +1138,7 @@ void coapServer::sendResponse(ObirIPAddress ip, int port, char *payload, uint8_t
 
 }*/
 
-//add observer
+//Dodawanie obserwatora. Funkcja modyfikowana.
 void coapServer::addObserver(String url, coapPacket *request, ObirIPAddress ip, int port)
 {
     //storing the details of clients
@@ -1150,12 +1164,11 @@ void coapServer::addObserver(String url, coapPacket *request, ObirIPAddress ip, 
     observer[obscount].observer_prevMillis = (unsigned long)millis();
 }
 
-//Orginalna funkcja addObserver
+//Orginalna funkcja addObserver.
 /*void coapServer::addObserver(String url,coapPacket *request,IPAddress ip,int port){
 
     //uri.find(url)(request,Udp.remoteIP(),Udp.remotePort());
     uri.find(url)(request,ip,port,0);
-
 
     //storing the details of clients
     observer[obscount].observer_token=request->token;
@@ -1166,12 +1179,10 @@ void coapServer::addObserver(String url, coapPacket *request, ObirIPAddress ip, 
 
     obscount=obscount+1;
 
-
-
 }*/
 
 
-//make nofification packet and send
+//Wywoływanie notyfikacji obserwatora. Funkcja modyfikowana.
 void coapServer::notification(char *payload, String url, uint8_t payloadLen)
 {
     coapPacket *response = new coapPacket();
@@ -1275,14 +1286,15 @@ void coapServer::notification(char *payload, String url, uint8_t payloadLen)
 //
 //}
 
+//Funkcja wysyła odpowieni kod gdy nie znajdzie żądanego zasobu. Funkcja własna.
 void coapServer::notFound(coapPacket *request, ObirEthernetUDP Udp){
     //Gdy żądany zasób nie występuje w bazie, serwer wysyła odp. z kodem NOT FOUND
     request->payload = nullptr;
     request->payloadlen = 0;
     request->code = COAP_NOT_FOUND;
-
     request->optionnum = 0;
-    //Dodatkowe opcje dodawane do pakietu
+
+    //Dodatkowe opcje dodawane do pakietu.
     char optionBuffer[2];
     optionBuffer[0] = ((uint16_t)COAP_TEXT_PLAIN & 0xFF00) >> 8;
     optionBuffer[1] = ((uint16_t)COAP_TEXT_PLAIN & 0x00FF);
@@ -1290,10 +1302,11 @@ void coapServer::notFound(coapPacket *request, ObirEthernetUDP Udp){
     request->options[request->optionnum].length = 2;
     request->options[request->optionnum].number = COAP_CONTENT_FORMAT;
     request->optionnum++;
-    //Wyślij odpowiedź
+    //Wyślij odpowiedź.
     sendPacket(request, Udp.remoteIP(), Udp.remotePort());
 }
 
+//Funkcja zwraca format payload'u oczekiwany przez klienta. Funkcja własna.
 uint8_t coapPacket::accept() {
     if (optionnum != 0){
         for (int i = 0; i < optionnum; ++i) {
@@ -1306,6 +1319,7 @@ uint8_t coapPacket::accept() {
         return (uint8_t)100;
 }
 
+//Funkcja porównuje dwie tablice. Funkcja własna.
 bool coapServer::compareArray(uint8_t a[], uint8_t b[], uint8_t lenA, uint8_t lenB){
     if(a == NULL || b == NULL){
         return false;
@@ -1322,6 +1336,7 @@ bool coapServer::compareArray(uint8_t a[], uint8_t b[], uint8_t lenA, uint8_t le
     }
 }
 
+//Funkcja oblicza długość tablicy w jakiej zmieści się int. Funkcja własna.
 uint8_t coapServer::countLength(uint8_t messageid) {
     int tmp = messageid;
     int len = 0;
@@ -1333,6 +1348,7 @@ uint8_t coapServer::countLength(uint8_t messageid) {
     return len;
 }
 
+//Funkcja wywoływana w momencie usuwania obserwatora z listy. Zeruje dane. Funkcja własna.
 void coapObserver::deleteObserver(){
     if(observer_token != NULL) {
         delete[] observer_token;
