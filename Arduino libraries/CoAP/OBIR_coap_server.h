@@ -12,6 +12,7 @@ version 3 of the License, or (at your option) any later version.
 #define __SIMPLE_COAP_H__
 
 //#include <WiFiUdp.h>
+#include <Arduino.h>
 #include <ObirEthernet.h>
 #include <ObirEthernetUdp.h>
 
@@ -24,9 +25,10 @@ version 3 of the License, or (at your option) any later version.
 
 //configuration
 #define MAX_OPTION_NUM 10
-#define BUF_MAX_SIZE 120
+#define BUF_MAX_SIZE 127
 #define MAX_CALLBACK 10
-#define MAX_AGE_DEFAULT 60
+//#define MAX_AGE_DEFAULT 60
+#define MAX_AGE_DEFAULT 15
 #define MAX_OBSERVER 10
 
 //Wyliczanie numer dodatkowej opcji
@@ -114,9 +116,9 @@ typedef enum
 class resource_dis
 {
 public:
-	String rt;
+    String rt;
 	uint8_t ct;
-	String title;
+    //String title;
 };
 
 //coap option class
@@ -154,14 +156,15 @@ public:
 	uint8_t code_();
 	uint16_t messageid_();
 	uint8_t *token_();
+    uint8_t accept();
 };
 
-typedef void (*callback)(coapPacket *, ObirIPAddress, int, int);
+typedef void (*callback)(coapPacket *, ObirIPAddress, int, int, uint8_t);
 
 class coapUri
 {
 public:
-	String u[MAX_CALLBACK];
+	String  u[MAX_CALLBACK];
 	callback c[MAX_CALLBACK];
 
 	coapUri();
@@ -173,20 +176,26 @@ public:
 class coapObserver
 {
 public:
-	uint8_t *observer_token;
-	uint8_t observer_tokenlen;
-	ObirIPAddress observer_clientip;
-	int observer_clientport;
-	String observer_url;
-	int observer_maxAge;
-	unsigned long observer_prevMillis;
+    uint8_t *observer_token;
+    uint8_t observer_tokenlen;
+    ObirIPAddress observer_clientip;
+    int observer_clientport;
+    String observer_url;
+    unsigned long observer_maxAge;
+    unsigned long observer_prevMillis;
+    uint8_t *observer_etag;
+    uint8_t observer_etagLen;
+    uint8_t *observer_storedResponse;
+    uint8_t observer_storedResponseLen;
+    int observer_repeatedPayload;
+
+    void deleteObserver();
 };
 
 //coap class
 class coapServer
 {
 public:
-	long previousMillis = 0;
 
 	coapServer();
 	bool start();
@@ -200,10 +209,14 @@ public:
 
 	void sendResponse(ObirIPAddress ip, int port, char *payload,uint8_t payloadLen);
 	void sendResponse(ObirIPAddress ip, int port, COAP_CONTENT_TYPE contentType, char *payload, uint8_t payloadLen);
+    void sendResponse(ObirIPAddress ip, int port, int erType, COAP_CONTENT_TYPE contentType, char *payload, uint8_t payloadLen);
 	void addObserver(String url, coapPacket *request, ObirIPAddress ip, int port);
 	void notification(char *payload, String url);
-	long getPreviousMillis();
+    //void sendResponse(char *payload);
 	void notFound(coapPacket *packet, ObirEthernetUDP Udp);
+    bool compareArray(uint8_t a[], uint8_t b[], uint8_t lenA, uint8_t lenB);
+    uint8_t countLength(uint8_t messageid);
+
 };
 
 #endif

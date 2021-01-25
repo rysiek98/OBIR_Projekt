@@ -1,24 +1,52 @@
-#include <Arduino.h>
 #include <ObirDhcp.h>
 #include <ObirEthernet.h>
 #include <ObirEthernetUdp.h>
 #include <OBIR_coap_server.h>
 #include <SPI.h>
 
+#define INT_MAX 100
+#define VERT_MAX 10
+#define EDGE_MAX 10
+
 byte MAC[] = {0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x02};
 coapServer coap;
-int VERT_MAX = 10;
-int EDGE_MAX = 5;
+//int VERT_MAX = 10;
+//int EDGE_MAX = 10;
 int adj_matrix[10][10]; //macierz sasiedztwa
 int count = 0;          //licznik wierzcholkow
 int edgesNum = 0;
 int tmp = 0;
 int vertices[10] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1}; //tablica wierzcholkow
-//char edges[21] = {'-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-'};
-char edges[20] = {0};    //tablica krawedzi
-char centVert[20] = {0}; //tablica wierz. cent.
-int path[20];
-int INT_MAX = 100;
+char edges[40] = {0};                                        //tablica krawedzi
+char centVert[10] = {0};                                     //tablica wierz. cent.
+int path[10];
+//int INT_MAX = 100;
+unsigned int sendPackets = 0;
+unsigned int putNum = 0;
+unsigned int prevPutNum = 0;
+unsigned int getNum = 0;
+
+int arrayLen(int number)
+{
+    uint8_t len = 0;
+    while (number >= 10)
+    {
+        number /= 10;
+        len++;
+    }
+    len++;
+    return len;
+}
+
+void makePayload(char *payload, int number, int len)
+{
+    while (len > 0)
+    {
+        payload[len - 1] = (number % 10) + 48;
+        number /= 10;
+        len--;
+    }
+}
 
 // czy pierwszy wierz. jest juz na liscie
 bool checkVerA(int a)
@@ -88,7 +116,7 @@ bool addEdge(int a, int b)
             adj_matrix[b][a] = 1;
             char ap = a + 48;
             char bp = b + 48;
-            if (edges[0] != NULL)
+            if (edges[0] != '\0')
             {
                 edges[tmp] = {44};
                 tmp++;
@@ -110,7 +138,7 @@ bool addEdge(int a, int b)
 int edgeSum(int dist[])
 {
     int sum = 0;
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < VERT_MAX; i++)
     {
         if (dist[i] != INT_MAX)
         {
@@ -124,7 +152,7 @@ int minDistance(int dist[], bool sptSet[])
     // Initialize min value
     int min = INT_MAX, min_index = -1;
 
-    for (int v = 0; v < 10; v++)
+    for (int v = 0; v < VERT_MAX; v++)
         if (sptSet[v] == false && dist[v] <= min)
         {
             min = dist[v];
@@ -136,14 +164,14 @@ int minDistance(int dist[], bool sptSet[])
 
 int dijkstra(int src)
 {
-    int dist[10]; // The output array.  dist[i] will hold the shortest
+    int dist[VERT_MAX] = {0}; // The output array.  dist[i] will hold the shortest
     // distance from src to i
 
-    bool sptSet[10]; // sptSet[i] will be true if vertex i is included in shortest
+    bool sptSet[VERT_MAX] = {0}; // sptSet[i] will be true if vertex i is included in shortest
     // path tree or shortest distance from src to i is finalized
 
     // Initialize all distances as INFINITE and stpSet[] as false
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < VERT_MAX; i++)
     {
         dist[i] = INT_MAX;
         sptSet[i] = false;
@@ -153,7 +181,7 @@ int dijkstra(int src)
     dist[src] = 0;
 
     // Find shortest path for all vertices
-    for (int i = 0; i < 10 - 1; i++)
+    for (int i = 0; i < VERT_MAX - 1; i++)
     {
         // Pick the minimum distance vertex from the set of vertices not
         // yet processed. u is always equal to src in the first iteration.
@@ -163,7 +191,7 @@ int dijkstra(int src)
         sptSet[u] = true;
 
         // Update dist value of the adjacent vertices of the picked vertex.
-        for (int v = 0; v < 10; v++)
+        for (int v = 0; v < VERT_MAX; v++)
 
             // Update dist[v] only if is not in sptSet, there is an edge from
             // u to v, and total weight of path from src to  v through u is
@@ -178,25 +206,26 @@ void centralVert()
 {
     if (count != 0)
     {
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < count; i++)
         {
-            path[i] = dijkstra(i);
+            //path[i] = dijkstra(i);
+            path[i] = dijkstra(vertices[i]);
         }
         int tmp2 = 0;
-        int centralVert[10] = {0};
+        int centralVert[VERT_MAX] = {0};
         int ile = 0;
         int len = INT_MAX;
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < count; i++)
         {
             if (path[i] < len && path[i] != 0)
             {
                 len = path[i];
-                centralVert[0] = i;
+                centralVert[0] = vertices[i];
                 ile = 1;
             }
             else if (path[i] == len && path[i] != 0)
             {
-                centralVert[ile] = i;
+                centralVert[ile] = vertices[i];
                 ile++;
             }
         }
@@ -206,7 +235,7 @@ void centralVert()
             tmp2++;
             centVert[i + 1] = ',';
         }
-        centVert[ile * 2 - 1] = NULL;
+        centVert[ile * 2 - 1] = '\0';
     }
 }
 
@@ -237,84 +266,145 @@ int parsePacket(uint8_t *payload, int payloadLen)
     else
         return 2;
 }
+
+
 void callback_center(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
 {
     Serial.println("Central Vertices");
     if (packet->code == COAP_GET && count == 0)
     {
-        coap.sendResponse(ip, port, COAP_TEXT_PLAIN, "No central vertices!", (uint8_t)strlen("No central vertices!"));
+        getNum++;
+        sendPackets++;
+        coap.sendResponse(ip, port, 132, COAP_TEXT_PLAIN, "", (uint8_t)0);
     }
     else if (packet->code == COAP_GET && count != 0)
     {
+        getNum++;
         centralVert();
-        coap.sendResponse(ip, port, COAP_TEXT_PLAIN, centVert, (uint8_t)strlen(centVert));
+        sendPackets++;
+        if(accept == 97 || accept == 100){
+          coap.sendResponse(ip, port,  COAP_TEXT_PLAIN, centVert, (uint8_t)strlen(centVert));
+        }else if (accept == 40){
+           int len = ((int)strlen(centVert))+4;
+           char payload[len]={0};
+           payload[0] = '<';
+           payload[1] = '/';
+           for(int i=0; i < strlen(centVert); i++){
+              payload[i+2] = centVert[i];
+            }
+           payload[len-2] = '>';
+           payload[len-1] = ';';
+           coap.sendResponse(ip, port, COAP_APPLICATION_LINK_FORMAT, payload, (uint8_t)len);
+          }
     }
 }
 //CoAP server Edges endpoint
 void callback_edges(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
 {
-    //Serial.println("Count:");
-    Serial.println(count);
+    Serial.println("Edges");
+
     if (packet->code == COAP_PUT)
     {
+        putNum++;
         if (parsePacket(packet->payload, packet->payloadlen) == 0)
         {
-            coap.sendResponse(ip, port, COAP_TEXT_PLAIN, "Edge added!", (uint8_t)strlen("Edge added!"));
+            sendPackets++;
+            coap.sendResponse(ip, port, 65, COAP_TEXT_PLAIN, "", (uint8_t)0);
         }
         else if (parsePacket(packet->payload, packet->payloadlen) == 1)
         {
-            //ewntualnie wporwadzic kod bledu
-            //coap.sendResponse(ip, port, COAP_TEXT_PLAIN, "Out of memory!", (uint8_t)strlen("Out of memory!"));
-            coap.sendResponse(ip, port, 160, COAP_TEXT_PLAIN, "", (uint8_t)strlen(""));
+            sendPackets++;
+            coap.sendResponse(ip, port, 160, COAP_TEXT_PLAIN, "", (uint8_t)0);
         }
         else if (parsePacket(packet->payload, packet->payloadlen) == 2)
 
         {
             //ewntualnie wporwadzic kod bledu
-            coap.sendResponse(ip, port, 133, COAP_TEXT_PLAIN, "", (uint8_t)strlen(""));
+            sendPackets++;
+            coap.sendResponse(ip, port, 133, COAP_TEXT_PLAIN, "", (uint8_t)0);
 
             //coap.sendResponse()
         }
     }
     else if (packet->code == COAP_GET)
     {
+        getNum++;
         if (count != 0)
         {
-            coap.sendResponse(ip, port, COAP_TEXT_PLAIN, edges, (uint8_t)strlen(edges));
+            sendPackets++;
+            if (accept == 50)
+            {
+                int len = ((int)strlen(edges)) + 12;
+                char payload[len] = {0};
+                char tmp[] = "{\"Edges\":\"";
+                for (int i = 0; i < strlen(tmp); i++)
+                {
+                    payload[i] = tmp[i];
+                }
+                for (int i = 0; i < strlen(edges); i++)
+                {
+                    payload[i + 10] = edges[i];
+                }
+                payload[len - 2] = '"';
+                payload[len - 1] = '}';
+               
+                coap.sendResponse(ip, port, COAP_APPLICATION_JSON, payload, (uint8_t)len);
+            }
+            else
+            {
+                coap.sendResponse(ip, port, COAP_TEXT_PLAIN, edges, (uint8_t)strlen(edges));
+            }
         }
 
         else
         {
-            coap.sendResponse(ip, port, COAP_TEXT_PLAIN, "Empty!", (uint8_t)strlen("Empty!"));
+            sendPackets++;
+            coap.sendResponse(ip, port, 132, COAP_TEXT_PLAIN, "", (uint8_t)0);
         }
     }
 }
 
-// void callback_vertices(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
-// {
-//     Serial.println("Vertices");
-//     if (packet->code == COAP_GET && count == 0)
-//     {
-//         coap.sendResponse(ip, port, COAP_TEXT_PLAIN, "Empty!", (uint8_t)strlen("Empty!"));
-//     }
-//     else
-//     {
-//         int it = 0;
-//         char payload[2 * count] = {0};
-//         for (int i = 0; i < 2 * count; i += 2)
-//         {
-//             payload[i] = vertices[it] + 48;
-//             payload[i + 1] = ',';
-//             it++;
-//         }
-//         for (int i = 0; i < 2 * count; i++)
-//         {
-//             Serial.print(payload[i]);
-//         }
-//         payload[2 * count - 1] = NULL;
-//         coap.sendResponse(ip, port, COAP_TEXT_PLAIN, payload, (uint8_t)strlen(payload));
-//     }
-// }
+//CoAP server Sendpackets endpoint
+void callback_sendPackets(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
+{
+    if (packet->code == COAP_GET)
+    {
+        Serial.println("Sendpackets endpoint");
+        sendPackets++;
+        getNum++;
+        uint8_t len = arrayLen(sendPackets);
+        char payload[len];
+        makePayload(payload, sendPackets, len);
+        coap.sendResponse(ip, port, COAP_TEXT_PLAIN, payload, (uint8_t)len);
+    }
+}
+
+void callback_PutNumber(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
+{
+    if (packet->code == COAP_GET)
+    {
+        getNum++;
+        Serial.println("PutNumber");
+        uint8_t len = arrayLen(putNum);
+        char payload[len];
+        makePayload(payload, putNum, len);
+        sendPackets++;
+        coap.sendResponse(ip, port, COAP_TEXT_PLAIN, payload, len);
+    }
+}
+void callback_GetNumber(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
+{
+    if (packet->code == COAP_GET)
+    {
+        getNum++;
+        Serial.println("GetNumber");
+        uint8_t len = arrayLen(getNum);
+        char payload[len];
+        makePayload(payload, getNum, len);
+        sendPackets++;
+        coap.sendResponse(ip, port, COAP_TEXT_PLAIN, payload, (uint8_t)len);
+    }
+}
 
 void setup()
 {
@@ -324,15 +414,25 @@ void setup()
     Serial.print("My IP address: ");
     Serial.print(ObirEthernet.localIP());
     Serial.println();
-    coap.server(callback_text, "text");
-    coap.server(callback_center, "centralVertices");
-    coap.server(callback_edges, "edges");
-
+    coap.server(callback_center, "CentralVertices");
+    coap.server(callback_edges, "Edges");
+    coap.server(callback_sendPackets, "SendPackets");
+    coap.server(callback_PutNumber, "PutNumber");
+    coap.server(callback_GetNumber, "GetNumber");
     coap.start();
 }
 
 void loop()
 {
+    if (prevPutNum != putNum)
+    {
+        uint8_t len = arrayLen(putNum);
+        char payload[len + 1];
+        payload[len] = '\0';
+        makePayload(payload, putNum, len);
+        coap.notification(payload, "PutNumber");
+        prevPutNum = putNum;
+    }
 
     coap.loop();
 }
