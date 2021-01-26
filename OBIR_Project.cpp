@@ -11,16 +11,17 @@
 byte MAC[] = {0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x02};
 coapServer coap;
 int adj_matrix[VERT_MAX][VERT_MAX]; //macierz sasiedztwa dla funkcji liczacej najkrotsze sciezki
-int count = 0;                      //licznik wierzcholkow
-int edgesNum = 0;                   //liczba krawedzi
-int tmp = 0;                        //zmienna pomocnicza uzywana do uzupelnienia tablicy krawedzi
+uint8_t count = 0;                      //licznik wierzcholkow
+uint8_t edgesNum = 0;                   //liczba krawedzi
+uint8_t tmp = 0;                        //zmienna pomocnicza uzywana do uzupelnienia tablicy krawedzi
 int vertices[VERT_MAX] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};   //tablica wierzcholkow
 char edges[EDGE_MAX*4] = {0};                                        //tablica krawedzi; do wypisywania
 char centVert[VERT_MAX*2] = {0};                                     //tablica wierz. cent.; do wypisywania
-int path[VERT_MAX];           //dlugosc sciezki
+uint8_t path[VERT_MAX];           //dlugosc sciezki
 unsigned int putNum = 0;      //liczba zadan typu "put"
 unsigned int prevPutNum = 0;  //poprzedni payload "put", uzywany przy opcji "observe"
 unsigned int getNum = 0;      //liczba zadan typu "get"
+unsigned int sendPackets = 0;      //liczba wysłanych pakietów
 
 //f. liczaca dlugosc liczby w znakach char
 int arrayLen(int number)
@@ -46,7 +47,7 @@ void makePayload(char *payload, int number, int len)
 }
 //sprawdzenie czy wierzcholek znajduje sie juz w tablicy wierzcholkow
 bool checkVer(int a)
-{ 
+{
     for (int i = 0; i < VERT_MAX; i++)
     {
         if (vertices[i] == a)
@@ -92,13 +93,13 @@ bool addEdge(int a, int b)
         }
         sort(vertices);
         if (adj_matrix[a][b] != 1)
-        {   
+        {
             adj_matrix[a][b] = 1; //uzupelnienie macierzy sasiedztwa
             adj_matrix[b][a] = 1;
             //dodanie krawedzi do tablicy
             char ap = a + 48;
             char bp = b + 48;
-            if (edges[0] != '\0') 
+            if (edges[0] != '\0')
             {
                 edges[tmp] = {44}; //zmienna tmp zadeklarowana globalnie, pomaga w poprawnym uzupelnieniu tablicy krawedzi
                 tmp++;
@@ -128,7 +129,7 @@ int edgeSum(int dist[])
     }
     return sum;
 }
-//f. obliczajaca najkrotsze sciezki 
+//f. obliczajaca najkrotsze sciezki
 int minDistance(int dist[], bool inc[])
 {
     int min = INT_MAX, min_index = -1;
@@ -141,7 +142,7 @@ int minDistance(int dist[], bool inc[])
 
     return min_index;
 }
-//agorytm do obliczania najkrotszych sciezek dla wierzcholka
+//algorytm do obliczania najkrotszych sciezek dla wierzcholka
 int dijkstra(int src)
 {
     int dist[VERT_MAX]; //odleglosci do poszczegolnych wierzcholkow od wierzcholka badanego
@@ -151,7 +152,7 @@ int dijkstra(int src)
         dist[i] = INT_MAX;
         inc[i] = false;
     }
-    dist[src] = 0; //odleglosc wierzcholka do samego siebie 
+    dist[src] = 0; //odleglosc wierzcholka do samego siebie
     for (int i = 0; i < VERT_MAX - 1; i++)
     {
         int u = minDistance(dist, inc);
@@ -162,8 +163,8 @@ int dijkstra(int src)
           {
              dist[v] = dist[u] + adj_matrix[u][v];
           }
-               
-        }      
+
+        }
     }
     return edgeSum(dist);
 }
@@ -240,23 +241,42 @@ void callback_center(coapPacket *packet, ObirIPAddress ip, int port, int obs, ui
     }
     else if (packet->code == COAP_GET && count != 0)
     {
-        getNum++;
-        centralVert();
-        if(accept == 97 || accept == 100){
-          coap.sendResponse(ip, port,  COAP_TEXT_PLAIN, centVert, (uint8_t)strlen(centVert));//wierzcholki centralne
-        }else if (accept == 40){
-           int len = ((int)strlen(centVert))+4;
-           char payload[len]={0};
-           payload[0] = '<';
-           payload[1] = '/';
-           for(int i=0; i < strlen(centVert); i++){
-              payload[i+2] = centVert[i];
-            }
-           payload[len-2] = '>';
-           payload[len-1] = ';';
-           coap.sendResponse(ip, port, COAP_APPLICATION_LINK_FORMAT, payload, (uint8_t)len);//wierzcholki centralne
+       getNum++;
+       centralVert();
+    if(accept == 50){
+          uint8_t len = ((uint8_t)strlen(centVert)) + 24;
+          char payload[len] = {0};
+          char tmp[] = "{\"Central Vertieces\":\"";
+          for (int i = 0; i < strlen(tmp); i++)
+          {
+              payload[i] = tmp[i];
           }
-    }
+          for (int i = 0; i < strlen(centVert); i++)
+          {
+              payload[i + 22] = centVert[i];
+          }
+          payload[len - 2] = '"';
+          payload[len - 1] = '}';
+
+          coap.sendResponse(ip, port, COAP_APPLICATION_JSON, payload, (uint8_t)len);//wierzcholki centralne
+    }else if (accept == 40){
+         uint8_t len = ((uint8_t)strlen(centVert))+4;
+         char payload[len]={0};
+         payload[0] = '<';
+         payload[1] = '/';
+         for(int i=0; i < strlen(centVert); i++){
+            payload[i+2] = centVert[i];
+          }
+         payload[len-2] = '>';
+         payload[len-1] = ';';
+         coap.sendResponse(ip, port, COAP_APPLICATION_LINK_FORMAT, payload, (uint8_t)len);//wierzcholki centralne
+        }else{
+           coap.sendResponse(ip, port,  COAP_TEXT_PLAIN, centVert, (uint8_t)strlen(centVert));//wierzcholki centralne
+          }
+    }else{
+        sendPackets++;
+        coap.sendResponse(ip, port, 133, COAP_TEXT_PLAIN, "", (uint8_t)0); //zła metoda
+     }
 }
 //wywolanie krawedzi (get i put)
 void callback_edges(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
@@ -277,7 +297,6 @@ void callback_edges(coapPacket *packet, ObirIPAddress ip, int port, int obs, uin
 
         {
             coap.sendResponse(ip, port, 133, COAP_TEXT_PLAIN, "", (uint8_t)0);//niedozwolona operacja (graf niespojny, zle formatowanie, bledne dane
-
         }
     }
     else if (packet->code == COAP_GET)
@@ -300,20 +319,30 @@ void callback_edges(coapPacket *packet, ObirIPAddress ip, int port, int obs, uin
                 }
                 payload[len - 2] = '"';
                 payload[len - 1] = '}';
-               
+
                 coap.sendResponse(ip, port, COAP_APPLICATION_JSON, payload, (uint8_t)len, 1);//wypisanie krawedzi
-            }
-            else
-            {
+            }else if(accept == 40){
+                 int len = ((int)strlen(edges))+4;
+                 char payload[len]={0};
+                 payload[0] = '<';
+                 payload[1] = '/';
+                 for(int i=0; i < strlen(edges); i++){
+                    payload[i+2] = edges[i];
+                  }
+                 payload[len-2] = '>';
+                 payload[len-1] = ';';
+                 coap.sendResponse(ip, port, COAP_APPLICATION_LINK_FORMAT, payload, (uint8_t)len,1);//wypisanie krawedzi
+
+             }else{
                 coap.sendResponse(ip, port, COAP_TEXT_PLAIN, edges, (uint8_t)strlen(edges), 1);//wypisanie krawedzi
             }
-        }
-
-        else
-        {
+        }else {
             coap.sendResponse(ip, port, 132, COAP_TEXT_PLAIN, "", (uint8_t)0);//brak krawedzi
         }
-    }
+    }else{
+        sendPackets++;
+        coap.sendResponse(ip, port, 133, COAP_TEXT_PLAIN, "", (uint8_t)0); //zła metoda
+      }
 }
 
 //wywolanie liczby wszystkich odp. wyslanych przez serwer (suma get+put)
@@ -323,11 +352,14 @@ void callback_sendPackets(coapPacket *packet, ObirIPAddress ip, int port, int ob
     {
         //Serial.println("Sendpackets endpoint");
         getNum++;
-        uint8_t len = arrayLen(getNum + putNum);
+        uint8_t len = arrayLen(getNum + putNum + sendPackets);
         char payload[len];
-        makePayload(payload, (getNum + putNum), len);
+        makePayload(payload, (getNum + putNum + sendPackets), len);
         coap.sendResponse(ip, port, COAP_TEXT_PLAIN, payload, (uint8_t)len);
-    }
+    }else{
+        sendPackets++;
+        coap.sendResponse(ip, port, 133, COAP_TEXT_PLAIN, "", (uint8_t)0); //zła metoda
+      }
 }
 //wywolanie liczby odp. na zadanie typu put wyslanych przez serwer
 void callback_PutNumber(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
@@ -339,7 +371,10 @@ void callback_PutNumber(coapPacket *packet, ObirIPAddress ip, int port, int obs,
         char payload[len];
         makePayload(payload, putNum, len);
         coap.sendResponse(ip, port, COAP_TEXT_PLAIN, payload, len);
-    }
+    }else{
+        sendPackets++;
+        coap.sendResponse(ip, port, 133, COAP_TEXT_PLAIN, "", (uint8_t)0); //zła metoda
+      }
 }
 //wywolanie liczby odp. na zadanie typu get wyslanych przez serwer
 void callback_GetNumber(coapPacket *packet, ObirIPAddress ip, int port, int obs, uint8_t accept)
@@ -351,13 +386,15 @@ void callback_GetNumber(coapPacket *packet, ObirIPAddress ip, int port, int obs,
         char payload[len];
         makePayload(payload, getNum, len);
         coap.sendResponse(ip, port, COAP_TEXT_PLAIN, payload, (uint8_t)len);
-    }
+    }else{
+        sendPackets++;
+        coap.sendResponse(ip, port, 133, COAP_TEXT_PLAIN, "", (uint8_t)0); //zła metoda
+      }
 }
 //konfiguracja serwera
 void setup()
 {
     Serial.begin(9600);
-
     ObirEthernet.begin(MAC);
     Serial.print("My IP address: ");
     Serial.print(ObirEthernet.localIP());
@@ -372,6 +409,8 @@ void setup()
 
 void loop()
 {
+    //sprawdzamy czy zawartosc zasobu PutNumber nie uległa zmianie, jesli ulegla zmianie
+    //wykonujemy notyfikacje (Observer)
     if (prevPutNum != putNum)
     {
         uint8_t len = arrayLen(putNum);

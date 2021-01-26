@@ -1,6 +1,7 @@
 /*
-This file is part of the ESP-COAP Server library for Arduino
+Biblioteka jest zmodyfikowana przez nas wersją poniższej biblioteki:
 
+This file is part of the ESP-COAP Server library for Arduino
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
 License as published by the Free Software Foundation; either
@@ -14,6 +15,8 @@ Main contributor:
 
 https://github.com/automote/ESP-CoAP
 */
+
+
 
 #include "OBIR_coap_server.h"
 
@@ -75,7 +78,7 @@ void coapUri::add(callback call, String url, resource_dis resource[])
         }
 
     for (int i = 0; i < MAX_CALLBACK; i++)
-        if (c[i] == NULL) //nowy zasob
+        if (c[i] == NULL) //Nowy zasob.
         {
             c[i] = call;
             u[i] = url;
@@ -257,8 +260,12 @@ bool coapServer::loop()
                     for (uint8_t i = 0; i < obscount; i++) {
                         if (observer[i].observer_clientip == Udp.remoteIP()) {
                             observer[i].deleteObserver();
-                            observer[i] = observer[i + 1];
-                            observer[i + 1] = {0};
+                            if(i < (MAX_OBSERVER-1)) {
+                                observer[i] = observer[i + 1];
+                                observer[i + 1] = {0};
+                            } else{
+                                observer[i] = {0};
+                            }
                             obscount--;
                         }
                     }
@@ -284,8 +291,12 @@ bool coapServer::loop()
                               if (observer[i].observer_clientip == Udp.remoteIP() &&
                                   observer[i].observer_url == url) {
                                   observer[i].deleteObserver();
-                                  observer[i] = observer[i + 1];
-                                  observer[i + 1] = {0};
+                                  if(i < (MAX_OBSERVER-1)) {
+                                      observer[i] = observer[i + 1];
+                                      observer[i + 1] = {0};
+                                  } else{
+                                      observer[i] = {0};
+                                  }
                                   obscount--;
                               }
                           }

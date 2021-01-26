@@ -1,6 +1,7 @@
 /*
-This file is part of the ESP-COAP Server library for Arduino
+Biblioteka jest zmodyfikowana przez nas wersją poniższej biblioteki:
 
+This file is part of the ESP-COAP Server library for Arduino
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
 License as published by the Free Software Foundation; either
@@ -41,7 +42,7 @@ https://github.com/automote/ESP-CoAP
 #define MAX_CALLBACK 5
 //#define MAX_AGE_DEFAULT 60
 #define MAX_AGE_DEFAULT 15
-#define MAX_OBSERVER 3
+#define MAX_OBSERVER 2
 
 //Wyliczanie numer opcji
 #define COAP_OPTION_DELTA(v, n) (v < 13 ? (*n = (0xFF & v)) : (v <= 0xFF + 13 ? (*n = 13) : (*n = 14)))
