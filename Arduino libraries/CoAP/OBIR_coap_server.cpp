@@ -920,7 +920,7 @@ void coapServer::sendResponse(ObirIPAddress ip, int port, int erType, COAP_CONTE
             }
         }
         //Obsluga obserwatora.
-        if (request->options[num].number == COAP_OBSERVE){
+        if (request->options[num].number == COAP_OBSERVE && *request->options[num].buffer != 1){
 
             response->token = actualObserver->observer_token;
             response->tokenlen = actualObserver->observer_tokenlen;
